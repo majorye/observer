@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+ <head>
+  <link href="css/reset.css" rel="stylesheet" type="text/css" />
+ <link href="css/form.css" rel="stylesheet" type="text/css" />
+<script type='text/javascript' src='lib/jquery.js'></script>
+<script type='text/javascript' src='lib/jquery.tmpl.js'></script>
+<script type='text/javascript' src='lib/observer.js'></script>
+  </head>
+  <body>
+  <div id="header"></div>
+   <div id="content">
+   	<form >
+		<label >First Name <sup>*</sup></label>
+		<input name="firstName"  data-binding="value:firstName" placeholder="First Name" required />
+		<span>First Name: <text data-binding="text:firstName"></text></span>
+		<label >Last Name <sup>*</sup></label>
+		<input name="lastName" data-binding="value:LastName" placeholder="Last Name" required />
+	    <span>Last Name: <text data-binding="text:LastName"></text></span>
+		<label for="emailaddress">Email address <sup>*</sup></label>
+		<input type="email" name="emailaddress"  data-binding="value:email" placeholder="anything@example.com" required />
+	    <span>Email Address: <text data-binding="text:email"></text></span>
+		<label for="birthday">Date of birthday (we like to send presents!)</label>
+		<input name="birthday" type="date"  data-binding="value:date" />
+	    <span>Birthday: <text data-binding="text:date"></text></span>
+		<label for="country">Country</label>
+		<input name="country"  list="countries"  data-binding="value:country" />
+	    <span>Country: <text data-binding="text:country"></text></span>
+		<label for="computers">How many computers do you have at home?</label>
+		<input name="computers" type="number" min="0" max ="100" value="2" data-binding="value:computers"  />	
+	     <span>Computer Numbers: <text data-binding="text:computers"></text></span>
+		<p class="small">We love spam, and we'll share your email address with all our third-party friends. Heck, we'll even sell it! If you're happy to receive annoying email on a regular basis please click submit...</p>
+		<input type="submit" name="submit" value="Sign me up!" class="awesome" data-binding="click:doClick"/>
+	   	<p class="small"><sup>*</sup> denotes a required field.</p>
+	</form>
+   </div>
+  </body>
+   <script type='text/javascript'>
+   var viewModel = {
+    firstName: ob.observer('jill'),
+	LastName:ob.observer(''),
+    email: '',
+	date:'2000-11-11',
+	country:'China',
+	computers:'2',
+	doClick:function(){
+	  alert('register~');
+	}
+  };
+  ob.applyBindings(viewModel,document.getElementById('myform'));
+  </script>
+</html>
