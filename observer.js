@@ -43,6 +43,43 @@ function applyBindingsToNode(viewModel,node){
 }
 
 /**
+* attribute instance factory, suppose attribue is AAA, so this 
+* instance should have getAAA, setAAA, subscribersMap, notifySubscribers method
+*/
+ob.attrObj=function(){}
+var _attrObjProto=ob.attrObj.prototype;
+_attrObjProto.init=function(attr,viewModel,node){
+  this.attr=attr;
+  this.getViewModel=function(){
+    return viewModel;
+  }
+  var me=this;
+  viewModel['get'+this.attr]=function(){
+    return this[attr];
+  };
+  viewModel['get'+this.attr+"Obj"]=function(){
+    this[attr+"Obj"]=me;
+    return this[attr+"Obj"];
+  }
+  viewModel['set'+this.attr]=function(value,attrObj){
+    this[attr]=value;
+	attrObj.notifySubscribers();
+  }
+  if(!this.subscribersMap)
+    this.subscribersMap=[];
+  this.subscribersMap.push(node);
+}
+_attrObjProto.notifySubscribers=function(){
+  for(var i=0;i<this.subscribersMap.length;i++){//update
+    ob.bindingProvider.updateDataBinding(this.getViewModel(),this.subscribersMap[i],this.attr);
+  }
+};
+
+_attrObjProto.addSubscriber=function(node){
+  this.subscribersMap.push(node);
+};
+
+/**
 * Simple Binding Provider, to check whether the element have the binding property, if have , register the binding relationship
 */
 ob.bindingProvider={
@@ -75,14 +112,18 @@ ob.bindingProvider={
   syncDataBinding:function(viewModel,node,binding){
     var type=binding.split(":")[0],
 	attr=binding.split(":")[1];
-	//var attrObj=ob.bindingProvider.registerDependance(viewModel,node,attr);
+	var attrObj=ob.bindingProvider.registerDependance(viewModel,node,attr);
 	switch(type){
 	  case "text":
 	    node.innerHTML="<text>"+viewModel[attr]+"</text>";
 		break;
 	  case "value":
 	    node.value=viewModel[attr];
-		//ob.util.registerEventHandler(node,"blur",attrObj.notifySubscribers);
+		var handler=function(){
+		  viewModel[attr]=node.value;
+		  attrObj.notifySubscribers();
+		}
+		ob.util.registerEventHandler(node,"blur",handler);
 		break;
 	  default:
 	    if(ob.util.arrayIndexOf(ob.constant.events,type)!=-1){
@@ -90,18 +131,42 @@ ob.bindingProvider={
 		}
 	    break;
 	}
-  }
-  /*registerDependance=function(viewModel,node,attr){
-    var attrobj=new ob.attrObj();
-	attrobj.init(attr,viewModel,node);
+  },
+  registerDependance:function(viewModel,node,attr){
+    var attrobj;
+    if(!viewModel['get'+attr+"Obj"]){
+      attrobj=new ob.attrObj();
+	  attrobj.init(attr,viewModel,node);
+	}else{
+	  if(viewModel['get'+attr+"Obj"]().addSubscriber)
+	   viewModel['get'+attr+"Obj"]().addSubscriber(node);
+	  attrobj=viewModel['get'+attr+"Obj"]();
+	}
 	return attrobj;
-	
   },
   updateDataBinding:function(viewModel,node,attr){
     var bindings=ob.bindingProvider.getBindings(node);
+	var attr=attr;
 	for(var prop in bindings) {
     if(bindings.hasOwnProperty(prop) && prop=="data-binding") {
-	  ob.util.arrayForEach(bindings["data-binding"],function(e){
+	  var attrs=bindings["data-binding"];
+	  for(var i=0;i<attrs.length;i++){
+	    if(attrs[i].indexOf(attr) !=-1){
+		  var type=attrs[i].split(":")[0],
+	      attr=attrs[i].split(":")[1];
+		  	switch(type){
+			  case "text":
+				node.innerHTML="<text>"+viewModel[attr]+"</text>";
+				break;
+			  case "value":
+				node.value=viewModel[attr];
+				break;
+			  default:
+				break;
+			}
+		}
+	  }
+	  /*ob.util.arrayForEach(bindings["data-binding"],function(e){
 	    if(e.indexof(attr) !=-1){
 		  var type=e.split(":")[0],
 	      attr=e.split(":")[1];
@@ -116,38 +181,9 @@ ob.bindingProvider={
 				break;
 			}
 		}
-	  });
+	  });*/
 	}
    }
-  }*/
-}
-
-/**
-* attribute instance factory, suppose attribue is AAA, so this 
-* instance should have getAAA, setAAA, subscribersMap, notifySubscribers method
-
-ob.attrObj=function(){}
-var _attrObjProto=ob.attrObj.prototype;
-_attrObjProto.init=function(attr,viewModel,node){
-  this.attr=attr;
-  this.viewModel=viewModel;
-  this.viewModel.get[this.attr]=function(){
-    return this.viewModel[attr];
-  };
-  this.viewModel.get[this.attr+"Obj"]=function(){
-    return this;
-  }
-  this.viewModel.set[this.attr]=function(value){
-    this.viewModel[attr]=value;
-	this.notifySubscribers();
-  }
-  if(!this.subscribersMap)
-    this.subscribersMap=[];
-  this.subscribersMap.push(node);
-}
-_attrObjProto.notifySubscribers=function(){
-  for(var i=0;i<this.subscribersMap.length;i++){//update
-    ob.bindingProvider.updateDataBinding(this.viewModel,this.subscribersMap[i],thia.attr);
   }
 }
 
