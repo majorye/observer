@@ -6,7 +6,7 @@ var ob = window["ob"] = {};
 ob.constant={
   dataclass:['data-binding'],
   events:['click','change']
-}
+};
 /**
 * viewModel {JSON} this object will present the related UI component , 
 *                   including the attribute, data , and operation
@@ -112,18 +112,25 @@ ob.bindingProvider={
   syncDataBinding:function(viewModel,node,binding){
     var type=binding.split(":")[0],
 	attr=binding.split(":")[1];
-	var attrObj=ob.bindingProvider.registerDependance(viewModel,node,attr);
+    var isObserved=ob.util.isFunction(viewModel[attr]);
+	var attrObj;
+	if(isObserved){
+	   attrObj=ob.bindingProvider.registerDependance(viewModel,node,attr);
+	}
+	var value=isObserved?viewModel[attr]():viewModel[attr];
 	switch(type){
 	  case "text":
-	    node.innerHTML="<text>"+viewModel[attr]+"</text>";
+	    node.innerHTML="<text>"+value+"</text>";
 		break;
 	  case "value":
-	    node.value=viewModel[attr];
-		var handler=function(){
-		  viewModel[attr]=node.value;
-		  attrObj.notifySubscribers();
+	    node.value=value;
+		if(isObserved && attrObj){
+			var handler=function(){
+			  viewModel[attr]=node.value;
+			  attrObj.notifySubscribers();
+			}
+			ob.util.registerEventHandler(node,"blur",handler);
 		}
-		ob.util.registerEventHandler(node,"blur",handler);
 		break;
 	  default:
 	    if(ob.util.arrayIndexOf(ob.constant.events,type)!=-1){
@@ -166,26 +173,18 @@ ob.bindingProvider={
 			}
 		}
 	  }
-	  /*ob.util.arrayForEach(bindings["data-binding"],function(e){
-	    if(e.indexof(attr) !=-1){
-		  var type=e.split(":")[0],
-	      attr=e.split(":")[1];
-		  	switch(type){
-			  case "text":
-				node.innerHTML="<text>"+viewModel[attr]+"</text>";
-				break;
-			  case "value":
-				node.value=viewModel[attr];
-				break;
-			  default:
-				break;
-			}
-		}
-	  });*/
 	}
    }
   }
 }
+
+/**
+*/
+ob.observer=function(initValue){
+  return function(){
+    return initValue;
+  };
+};
 
 /**
 * util method
@@ -211,7 +210,13 @@ ob.util={
 				return i;
 		return -1;
 	},
-	 registerEventHandler: function (element, eventType, handler) {
+	isFunction:function(obj){
+	  return jQuery.type(obj) === "function";
+	},
+    isArray: Array.isArray || function( obj ) {
+		return jQuery.type(obj) === "array";
+	},
+	registerEventHandler: function (element, eventType, handler) {
            if (typeof element.addEventListener == "function")
                 element.addEventListener(eventType, handler, false);
             else if (typeof element.attachEvent != "undefined")
