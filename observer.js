@@ -43,12 +43,22 @@ function applyBindingsToNode(viewModel,node){
 }
 
 /**
-* attribute instance factory, suppose attribue is AAA, so this 
-* instance should have getAAA, setAAA, subscribersMap, notifySubscribers method
+ * triggerObject Class, triggerObject including the attribute or the Array Object,
+ * like attribute value change , or the Array Object element be changed(add/delete),
+ * they will trigger the change event to their subscriber, so subscriber will 
+ * auto do the relative change/action. 
+ *  suppose triggerObject is AAA(no matter attribute or Object), so this 
+ * instance should have getAAA, setAAA, subscribersMap, notifySubscribers method
+ * 
+ * Usage:
+ * <pre>
+ * var triggerObj=new triggerObject();
+ * triggerObj.init(obj,viewModel,node);
+ * </pre>
 */
-ob.attrObj=function(){}
-var _attrObjProto=ob.attrObj.prototype;
-_attrObjProto.init=function(attr,viewModel,node){
+ob.triggerObject=function(){}
+var _triggerObjProto=ob.triggerObject.prototype;
+_triggerObjProto.init=function(attr,viewModel,node){
   this.attr=attr;
   this.getViewModel=function(){
     return viewModel;
@@ -61,21 +71,21 @@ _attrObjProto.init=function(attr,viewModel,node){
     this[attr+"Obj"]=me;
     return this[attr+"Obj"];
   }
-  viewModel['set'+this.attr]=function(value,attrObj){
+  viewModel['set'+this.attr]=function(value,triggerObject){
     this[attr]=value;
-	attrObj.notifySubscribers();
+	triggerObject.notifySubscribers();
   }
   if(!this.subscribersMap)
     this.subscribersMap=[];
   this.subscribersMap.push(node);
 }
-_attrObjProto.notifySubscribers=function(){
+_triggerObjProto.notifySubscribers=function(){
   for(var i=0;i<this.subscribersMap.length;i++){//update
     ob.bindingProvider.updateDataBinding(this.getViewModel(),this.subscribersMap[i],this.attr);
   }
 };
 
-_attrObjProto.addSubscriber=function(node){
+_triggerObjProto.addSubscriber=function(node){
   this.subscribersMap.push(node);
 };
 
@@ -112,10 +122,37 @@ ob.bindingProvider={
   syncDataBinding:function(viewModel,node,binding){
     var type=binding.split(":")[0],
 	attr=binding.split(":")[1];
-    var isObserved=ob.util.isFunction(viewModel[attr]);
-	var attrObj;
+	var triggerObject,expressionArr=[];
+	//if(isObserved){
+	var pattern=/^[a-zA-Z]{1}([a-zA-Z0-9]|[_])*$/;
+	var originalExpressionResult;
+	if(!pattern.test(attr)){//expression,currently just support '!','>','<','==','==='
+	  var opeArr=['!','>','<','==','==='];
+	  for(var i=0;i<opeArr.length;i++){
+		if(attr.indexOf(opeArr[i])!=-1){
+		  var _s=attr.split(opeArr[i]);
+		  if(opeArr=='!'){
+		   attr=_s[1]
+		   originalExpressionResult=eval("!viewModel"+attr+"()");
+		  }else{
+			attr=_s[0];
+			//contain . like ['friends.length']
+			var attrCopy=attr;
+			if(attr.indexOf('.')==-1){
+			  originalExpressionResult=eval("viewModel."+attr+'()'+opeArr[i]+_s[1]);
+			}else{
+			  originalExpressionResult=eval("viewModel."+attr+opeArr[i]+_s[1]);
+		      attr=attr.split('.')[0];
+			}
+		  }
+		  //expressionArr=[attr,opeArr[i],opeArr=='!'?_s[0]:_s[1]];
+		  break;
+		}
+	  }
+	}
+	var isObserved=ob.util.isFunction(viewModel[attr]);
 	if(isObserved){
-	   attrObj=ob.bindingProvider.registerDependance(viewModel,node,attr);
+	  triggerObject=ob.bindingProvider.registerDependance(viewModel,node,attr);
 	}
 	var value=isObserved?viewModel[attr]():viewModel[attr];
 	switch(type){
@@ -124,14 +161,29 @@ ob.bindingProvider={
 		break;
 	  case "value":
 	    node.value=value;
-		if(isObserved && attrObj){
+		if(isObserved && triggerObject){
 			var handler=function(){
 			  viewModel[attr]=node.value;
-			  attrObj.notifySubscribers();
+			  triggerObject.notifySubscribers();
 			}
 			ob.util.registerEventHandler(node,"blur",handler);
 		}
 		break;
+	  case "visible":  //array , attribute value etc . condition judge
+	     if(!originalExpressionResult){
+		   node.style.display="none";
+		 }else{
+		   node.style.display="block";
+		 }
+	    break;
+	 case "disabled":
+	   	 if(!originalExpressionResult){
+		   node.setAttribute('disabled','disabled');
+		 }else{
+		   node.removeAttribute('disabled');
+		 }
+	    break;
+	    
 	  default:
 	    if(ob.util.arrayIndexOf(ob.constant.events,type)!=-1){
 		  ob.util.registerEventHandler(node,type,viewModel[attr]);
@@ -140,16 +192,16 @@ ob.bindingProvider={
 	}
   },
   registerDependance:function(viewModel,node,attr){
-    var attrobj;
+    var triggerObject;
     if(!viewModel['get'+attr+"Obj"]){
-      attrobj=new ob.attrObj();
-	  attrobj.init(attr,viewModel,node);
+      triggerObject=new ob.triggerObject();
+	  triggerObject.init(attr,viewModel,node);
 	}else{
 	  if(viewModel['get'+attr+"Obj"]().addSubscriber)
 	   viewModel['get'+attr+"Obj"]().addSubscriber(node);
-	  attrobj=viewModel['get'+attr+"Obj"]();
+	  triggerObject=viewModel['get'+attr+"Obj"]();
 	}
-	return attrobj;
+	return triggerObject;
   },
   updateDataBinding:function(viewModel,node,attr){
     var bindings=ob.bindingProvider.getBindings(node);
@@ -184,6 +236,12 @@ ob.bindingProvider={
 ob.observerable=function(initValue){
   return function(){
     return initValue;
+  };
+};
+
+ob.observerableArray=function(array){
+    return function(){
+    return array;
   };
 };
 

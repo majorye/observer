@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+ <head>
+  <link href="css/reset.css" rel="stylesheet" type="text/css" />
+<script type='text/javascript' src='lib/jquery.js'></script>
+<script type='text/javascript' src='lib/jquery.tmpl.js'></script>
+<script type='text/javascript' src='lib/observer.js'></script>
+<script>
+var markup = "<li>${task}</li>";
+$.template("todoTemplate", markup);
+</script>
+  </head>
+  <body>
+  <div id="header"></div>
+   <div id="content">
+	<UL id="list">
+	  <li>ssssss
+	  <li>bbbb
+	</UL>
+	<button data-binding="disabled:friends.length<3" value="submit" >AAAAAAAAAA</button>
+   </div>
+  </body>
+   <script type='text/javascript'>
+   var viewModel = {
+     friends:ob.observerableArray(["Arrmy","Joel","Fellx"])
+   };
+   //$.tmpl( "todoTemplate", viewModel.todo ).appendTo( "#todolist" );
+  ob.applyBindings(viewModel,document.getElementById('content'));
+  </script>
+</html>
